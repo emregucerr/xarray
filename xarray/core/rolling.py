@@ -415,13 +415,14 @@ class DataArrayRolling(Rolling["DataArray"]):
             self.dim, self.window, window_dims, self.center, fill_value=fill_value
         )
 
-        attrs = obj.attrs if keep_attrs else {}
+        keep_attrs = self._get_keep_attrs(keep_attrs)
 
         result = DataArray(
             window,
             dims=obj.dims + tuple(window_dims),
             coords=obj.coords,
-            attrs=attrs,
+            indexes=obj.indexes,
+            attrs=obj.attrs if keep_attrs else {},
             name=obj.name,
         )
         return result.isel({d: slice(None, None, s) for d, s in zip(self.dim, strides)})

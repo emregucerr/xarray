@@ -2487,6 +2487,69 @@ class Variable(NamedArray, AbstractArray, VariableArithmetic):
         out = super()._to_dense()
         return cast("Variable", out)
 
+    def _construct(cls, obj, window_dim=None, keep_attrs=None, window_dim_kwargs=None, *args, **kwargs) -> DataArray:
+        """
+        Implement rolling window computation for the given object and return a DataArray.
+
+        Parameters
+        ----------
+        obj : DataArray or Variable
+            The object to compute the rolling window on.
+        window_dim : str or dict, optional
+            Name of the new windowed dimension, or a dict with window dimension
+            names and their corresponding sizes.
+        keep_attrs : bool, optional
+            If True, the variable's attributes (`attrs`) will be copied from
+            the original object to the new one.  If False (default), the new
+            object will be returned without attributes.
+        window_dim_kwargs : dict, optional
+            Additional keyword arguments passed to `rolling_window`.
+
+        Returns
+        -------
+        DataArray
+            A new DataArray object with a rolling window applied and index selection.
+        """
+        if window_dim is None and not window_dim_kwargs:
+            raise ValueError("Either `window_dim` or `window_dim_kwargs` must be provided.")
+        keep_attrs = cls._get_keep_attrs(keep_attrs)
+
+        if isinstance(window_dim, str):
+            window_dims = {window_dim: kwargs.pop(window_dim)}
+        elif isinstance(window_dim, dict):
+            window_dims = window_dim
+        else:
+            raise ValueError("`window_dim` must be either a str or a dict")
+
+        if window_dim_kwargs is None:
+            window_dim_kwargs = {}
+
+        # Calculate the window dimensions and strides
+        strides = {d: obj.sizes[d] // window_dims[d] for d in window_dims}
+        
+        # Compute the rolling window data
+        rolling_data = obj.variable.rolling_window(
+            dim=list(window_dims.keys()),
+            window=list(window_dims.values()),
+            window_dim=list(window_dims.keys()),
+            **window_dim_kwargs
+        )
+
+        # Set the attributes based on keep_attrs
+        attrs = obj.attrs if keep_attrs else None
+
+        # Construct the indexes and unstacked_indexes dictionaries
+        indexes = {d: obj.get_index(d) for d in obj.dims if d in obj.indexes}
+        unstacked_indexes = {d: obj.get_index(d) for d in obj.dims if d not in window_dims}
+
+        # Create the final DataArray
+        result = DataArray(data=rolling_data, dims=obj.dims, coords=indexes, attrs=attrs, name=obj.name)
+
+        # Apply index selection to the strides
+        result = result.isel({d: slice(None, None, s) for d, s in strides.items()})
+
+        return result
+
     def chunk(  # type: ignore[override]
         self,
         chunks: int | Literal["auto"] | Mapping[Any, None | int | tuple[int, ...]] = {},

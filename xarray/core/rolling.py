@@ -394,14 +394,21 @@ class DataArrayRolling(Rolling["DataArray"]):
 
         attrs = obj.attrs if keep_attrs else {}
 
+        attrs = obj.attrs if keep_attrs else {}
         result = DataArray(
             window,
             dims=obj.dims + tuple(window_dims),
-            coords=obj.coords,
+            coords=obj.coords.to_dataset().reset_coords(drop=True),
             attrs=attrs,
             name=obj.name,
         )
-        return result.isel({d: slice(None, None, s) for d, s in zip(self.dim, strides)})
+        non_dim_coords = {k: v for k, v in obj.coords.items() if k not in result.dims}
+        result_with_stride = result.isel({d: slice(None, None, s) for d, s in zip(self.dim, strides)})
+        for coord_name, coord_values in non_dim_coords.items():
+            result_with_stride.coords[coord_name] = coord_values
+        if keep_attrs:
+            result_with_stride.attrs = attrs
+        return result_with_stride
 
     def reduce(
         self, func: Callable, keep_attrs: bool | None = None, **kwargs: Any
@@ -788,8 +795,12 @@ class DatasetRolling(Rolling["Dataset"]):
 
         attrs = self.obj.attrs if keep_attrs else {}
 
-        return Dataset(dataset, coords=self.obj.coords, attrs=attrs).isel(
-            {d: slice(None, None, s) for d, s in zip(self.dim, strides)}
+        return self._construct(
+            window_dim=window_dim,
+            stride=stride,
+            fill_value=fill_value,
+            keep_attrs=keep_attrs,
+            **window_dim_kwargs,
         )
 
 

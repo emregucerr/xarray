@@ -167,7 +167,7 @@ def _unpack_netcdf_time_units(units):
     return delta_units, ref_date
 
 
-def _decode_cf_datetime_dtype(data, units, calendar, use_cftime):
+def _decode_cf_datetime_dtype(data, units, calendar, use_cftime, name=None):
     # Verify that at least the first and last date can be decoded
     # successfully. Otherwise, tracebacks end up swallowed by
     # Dataset.__repr__ when users try to view their lazily decoded array.
@@ -177,13 +177,13 @@ def _decode_cf_datetime_dtype(data, units, calendar, use_cftime):
     )
 
     try:
-        result = decode_cf_datetime(example_value, units, calendar, use_cftime)
+        result = decode_cf_datetime(example_value, units, calendar, use_cftime, name)
     except Exception:
         calendar_msg = (
             "the default calendar" if calendar is None else f"calendar {calendar!r}"
         )
         msg = (
-            f"unable to decode time units {units!r} with {calendar_msg!r}. Try "
+            f"unable to decode time units {units!r} with {calendar_msg!r} for variable {name!r}. Try "
             "opening your dataset with decode_times=False or installing cftime "
             "if it is not installed."
         )
@@ -250,7 +250,7 @@ def _decode_datetime_with_pandas(flat_num_dates, units, calendar):
     return (pd.to_timedelta(flat_num_dates_ns_int, "ns") + ref_date).values
 
 
-def decode_cf_datetime(num_dates, units, calendar=None, use_cftime=None):
+def decode_cf_datetime(num_dates, units, calendar=None, use_cftime=None, name=None):
     """Given an array of numeric dates in netCDF format, convert it into a
     numpy array of date time objects.
 
@@ -685,12 +685,13 @@ class CFDatetimeCoder(VariableCoder):
         if isinstance(units, str) and "since" in units:
             units = pop_to(attrs, encoding, "units")
             calendar = pop_to(attrs, encoding, "calendar")
-            dtype = _decode_cf_datetime_dtype(data, units, calendar, self.use_cftime)
+            dtype = _decode_cf_datetime_dtype(data, units, calendar, self.use_cftime, name)
             transform = partial(
                 decode_cf_datetime,
                 units=units,
                 calendar=calendar,
                 use_cftime=self.use_cftime,
+                name=name,
             )
             data = lazy_elemwise_func(data, transform, dtype)
 

@@ -449,7 +449,7 @@ class Coordinates(AbstractCoordinates):
         return self.to_dataset().identical(other.to_dataset())
 
     def _update_coords(
-        self, coords: dict[Hashable, Variable], indexes: Mapping[Any, Index]
+        self, coords: dict[Hashable, Variable], indexes: Mapping[Any, Index] | None = None
     ) -> None:
         # redirect to DatasetCoordinates._update_coords
         self._data.coords._update_coords(coords, indexes)

@@ -615,6 +615,14 @@ class DataWithCoords(AttrAccessMixin):
         from xarray.core.coordinates import Coordinates
 
         coords_combined = either_dict_or_kwargs(coords, coords_kwargs, "assign_coords")
+
+        # Determine which indexes need to be updated based on coordinates being modified
+        updates_for_indexes = {}
+        for coord_name in results:
+            if coord_name in self._coords:
+                coord_index = self._indexes.get(coord_name)
+                if coord_index:
+                    updates_for_indexes[coord_name] = coord_index
         data = self.copy(deep=False)
 
         results: Coordinates | dict[Hashable, Any]
@@ -623,7 +631,8 @@ class DataWithCoords(AttrAccessMixin):
         else:
             results = self._calc_assign_results(coords_combined)
 
-        data.coords.update(results)
+        # Call the _update_coords method passing the new coordinates and their corresponding indexes to be updated
+        data._update_coords(results, updates_for_indexes)
         return data
 
     def assign_attrs(self, *args: Any, **kwargs: Any) -> Self:

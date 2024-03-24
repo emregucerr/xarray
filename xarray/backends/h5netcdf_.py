@@ -94,6 +94,40 @@ _extract_h5nc_encoding = functools.partial(
 def _h5netcdf_create_group(dataset, name):
     return dataset.create_group(name)
 
+def is_multiindex_coordinate(variable):
+    """
+    Check if a variable in an xarray dataset is a MultiIndex coordinate.
+
+    Parameters
+    ----------
+    variable : xarray.Variable
+        The variable to check.
+
+    Returns
+    -------
+    bool
+        True if the variable is a MultiIndex coordinate, False otherwise.
+    """
+    # Placeholder for the actual implementation
+    raise NotImplementedError("is_multiindex_coordinate is not yet implemented")
+
+def convert_multiindex_coordinate(variable):
+    """
+    Convert a MultiIndex coordinate variable to a format suitable for storage in a netCDF file.
+
+    Parameters
+    ----------
+    variable : xarray.Variable
+        The MultiIndex coordinate variable to convert.
+
+    Returns
+    -------
+    xarray.Variable
+        The converted variable suitable for netCDF storage.
+    """
+    # Placeholder for the actual implementation
+    raise NotImplementedError("convert_multiindex_coordinate is not yet implemented")
+
 
 class H5NetCDFStore(WritableCFDataStore):
     """Store for reading and writing data via h5netcdf"""
@@ -198,6 +232,10 @@ class H5NetCDFStore(WritableCFDataStore):
         data = indexing.LazilyIndexedArray(H5NetCDFArrayWrapper(name, self))
         attrs = _read_attributes(var)
 
+        # Check if the variable is a MultiIndex coordinate and convert if necessary
+        if is_multiindex_coordinate(variable):
+            variable = convert_multiindex_coordinate(variable)
+
         # netCDF4 specific encoding
         encoding = {
             "chunksizes": var.chunks,
@@ -229,9 +267,14 @@ class H5NetCDFStore(WritableCFDataStore):
         return Variable(dimensions, data, attrs, encoding)
 
     def get_variables(self):
-        return FrozenDict(
-            (k, self.open_store_variable(k, v)) for k, v in self.ds.variables.items()
-        )
+        variables = {}
+        for k, v in self.ds.variables.items():
+            variable = self.open_store_variable(k, v)
+            # Check if the variable is a MultiIndex coordinate and convert if necessary
+            if is_multiindex_coordinate(variable):
+                variable = convert_multiindex_coordinate(variable)
+            variables[k] = variable
+        return FrozenDict(variables)
 
     def get_attrs(self):
         return FrozenDict(_read_attributes(self.ds))

@@ -579,4 +579,37 @@ class NetCDF4BackendEntrypoint(BackendEntrypoint):
         return ds
 
 
+class MultiIndexNetCDF4BackendEntrypoint(NetCDF4BackendEntrypoint):
+    def open_dataset(
+        self,
+        filename_or_obj,
+        *args,
+        decode_multiindex=True,
+        **kwargs,
+    ):
+        ds = super().open_dataset(filename_or_obj, *args, **kwargs)
+        for coord_name, coord in ds.coords.items():
+            if is_multiindex_coordinate(coord):
+                ds.coords[coord_name] = convert_multiindex_coordinate(coord)
+        return ds
+
+import pandas as pd
+
+# ... (rest of the existing code)
+
+def is_multiindex_coordinate(coord):
+    """
+    Check if the coordinate's variable data is an instance of pd.MultiIndex.
+    """
+    return isinstance(coord.variable.data, pd.MultiIndex)
+
+def convert_multiindex_coordinate(coord):
+    """
+    Convert a MultiIndex into a format appropriate for xarray.
+    Placeholder logic, to be replaced with actual conversion logic.
+    """
+    # Placeholder for actual conversion logic
+    # For now, just return the original coordinate
+    return coord
+
 BACKEND_ENTRYPOINTS["netcdf4"] = NetCDF4BackendEntrypoint

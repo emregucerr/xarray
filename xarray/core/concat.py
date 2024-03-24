@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Hashable, Iterable, cast, overload
 
+import numpy as np
 import pandas as pd
 
 from xarray.core import dtypes, utils
@@ -290,11 +291,19 @@ def _calc_concat_dim_index(
     return dim, index
 
 
+import numpy as np
+
+def create_empty_var(template_var):
+    """Create an empty Variable with the same dimensions and attributes as the template_var."""
+    empty_data = np.full_like(template_var.data, fill_value=template_var.dtype.type())
+    return Variable(template_var.dims, empty_data, attrs=template_var.attrs)
+
 def _calc_concat_over(datasets, dim, dim_names, data_vars, coords, compat):
     """
     Determine which dataset variables need to be concatenated in the result,
     """
     # Return values
+    all_vars = set(ds.data_vars for ds in datasets)
     concat_over = set()
     equals = {}
 
@@ -401,7 +410,13 @@ def _calc_concat_over(datasets, dim, dim_names, data_vars, coords, compat):
 
     process_subset_opt(data_vars, "data_vars")
     process_subset_opt(coords, "coords")
-    return concat_over, equals, concat_dim_lengths
+    missing_vars = all_vars - concat_over
+    # Augment datasets with missing variables filled with np.nan
+    for ds in datasets:
+        for var_name in missing_vars:
+            if var_name not in ds:
+                ds[var_name] = (ds.dims, np.full(ds.sizes.values(), np.nan))
+    return concat_over, equals, concat_dim_lengths, missing_vars
 
 
 # determine dimensional coordinate names and a dict mapping name to DataArray

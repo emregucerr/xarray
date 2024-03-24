@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import xarray as xr
 from xarray import DataArray, Dataset, Variable, concat
 from xarray.core import dtypes, merge
 from xarray.core.indexes import PandasIndex
@@ -859,3 +860,8 @@ def test_concat_index_not_same_dim() -> None:
         match=r"Cannot concatenate along dimension 'x' indexes with dimensions.*",
     ):
         concat([ds1, ds2], dim="x")
+class TestConcatenate:
+
+    def test_concat_with_missing_variables(self):
+        # TODO: Implement the actual test code here
+        pass

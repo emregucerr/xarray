@@ -35,8 +35,13 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
+import warnings
 from __future__ import annotations
-
+warnings.warn(
+    "The 'base' argument of CFTimeGrouper is deprecated and will be removed in a future version.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 import datetime
 import typing
 
@@ -80,8 +85,34 @@ class CFTimeGrouper:
         self.closed: SideOptions
         self.label: SideOptions
 
-        if base is not None and offset is not None:
-            raise ValueError("base and offset cannot be provided at the same time")
+        # Issue a deprecation warning for the 'base' argument
+        warnings.warn(
+            "The 'base' argument of CFTimeGrouper is deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        warnings.warn(
+            "The 'base' argument is deprecated and will be removed in a future version. "
+            "Use 'offset' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        warnings.warn(
+            "The 'base' argument is deprecated and will be removed in a future version. "
+            "Use 'offset' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if base is not None:
+            warnings.warn(
+                "The 'base' argument is deprecated and will be removed in a future version. "
+                "Use 'offset' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            # Existing block handling the 'base' argument
+            if offset is not None:
+                raise ValueError("base and offset cannot be provided at the same time")
 
         self.freq = to_offset(freq)
         self.loffset = loffset
@@ -122,8 +153,17 @@ class CFTimeGrouper:
                 else:
                     self.label = label
 
-        if base is not None and isinstance(self.freq, Tick):
-            offset = type(self.freq)(n=base % self.freq.n).as_timedelta()
+        if base is not None:
+            if not isinstance(self.freq, Tick):
+                raise ValueError("base argument is only valid for frequencies of type Tick")
+            # Calculate the offset as a multiple of the frequency period that is less than the base
+            periods = base // self.freq.n
+            remainder = base % self.freq.n
+            # The offset is the remainder converted to a timedelta
+            self.offset = type(self.freq)(n=remainder).as_timedelta()
+            # Adjust the origin by subtracting the number of full periods
+            if isinstance(self.origin, CFTimeDatetime):
+                self.origin = self.origin - type(self.freq)(n=periods).as_timedelta()
 
         if offset is not None:
             try:

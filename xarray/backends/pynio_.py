@@ -16,12 +16,17 @@ from .file_manager import CachingFileManager
 from .locks import HDF5_LOCK, NETCDFC_LOCK, SerializableLock, combine_locks, ensure_lock
 from .store import StoreBackendEntrypoint
 
-try:
-    import Nio
+def get_pynio_module():
+    """
+    Lazily load the PyNIO module.
+    """
+    global Nio
+    try:
+        import Nio
+    except ModuleNotFoundError:
+        Nio = None
+    return Nio
 
-    has_pynio = True
-except ModuleNotFoundError:
-    has_pynio = False
 
 
 # PyNIO can invoke netCDF libraries internally
@@ -61,7 +66,11 @@ class NioDataStore(AbstractDataStore):
     """Store for accessing datasets via PyNIO"""
 
     def __init__(self, filename, mode="r", lock=None, **kwargs):
-
+        with PYNIO_LOCK:
+            Nio = get_pynio_module()
+            if Nio is None:
+                raise ModuleNotFoundError("The PyNIO module is not available.")
+        
         if lock is None:
             lock = PYNIO_LOCK
         self.lock = ensure_lock(lock)
@@ -101,7 +110,9 @@ class NioDataStore(AbstractDataStore):
 
 
 class PynioBackendEntrypoint(BackendEntrypoint):
-    available = has_pynio
+    @property
+    def available(self):
+        return get_pynio_module() is not None
 
     def open_dataset(
         self,
@@ -116,7 +127,11 @@ class PynioBackendEntrypoint(BackendEntrypoint):
         mode="r",
         lock=None,
     ):
-        filename_or_obj = _normalize_path(filename_or_obj)
+        with PYNIO_LOCK:
+            Nio = get_pynio_module()
+            if Nio is None:
+                raise ModuleNotFoundError("The PyNIO module is not available.")
+            filename_or_obj = _normalize_path(filename_or_obj)
         store = NioDataStore(
             filename_or_obj,
             mode=mode,

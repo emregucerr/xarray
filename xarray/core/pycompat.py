@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from importlib import import_module
+from importlib import import_module, util
 from typing import Any, Literal
 
 import numpy as np
@@ -27,30 +27,26 @@ class DuckArrayModule:
     available: bool
 
     def __init__(self, mod: ModType) -> None:
-        try:
-            duck_array_module = import_module(mod)
-            duck_array_version = Version(duck_array_module.__version__)
+        spec = util.find_spec(mod)
+        self.module = None
+        self.version = Version("0.0.0")
+        self.type = ()
+        self.available = spec is not None
 
-            if mod == "dask":
-                duck_array_type = (import_module("dask.array").Array,)
-            elif mod == "pint":
-                duck_array_type = (duck_array_module.Quantity,)
-            elif mod == "cupy":
-                duck_array_type = (duck_array_module.ndarray,)
-            elif mod == "sparse":
-                duck_array_type = (duck_array_module.SparseArray,)
+    def load(self):
+        if self.available and self.module is None:
+            self.module = import_module(self.mod)
+            self.version = Version(self.module.__version__)
+            if self.mod == "dask":
+                self.type = (import_module("dask.array").Array,)
+            elif self.mod == "pint":
+                self.type = (self.module.Quantity,)
+            elif self.mod == "cupy":
+                self.type = (self.module.ndarray,)
+            elif self.mod == "sparse":
+                self.type = (self.module.SparseArray,)
             else:
                 raise NotImplementedError
-
-        except ImportError:  # pragma: no cover
-            duck_array_module = None
-            duck_array_version = Version("0.0.0")
-            duck_array_type = ()
-
-        self.module = duck_array_module
-        self.version = duck_array_version
-        self.type = duck_array_type
-        self.available = duck_array_module is not None
 
 
 dsk = DuckArrayModule("dask")
@@ -66,9 +62,8 @@ cupy_array_type = DuckArrayModule("cupy").type
 
 def is_dask_collection(x):
     if dsk.available:
-        from dask.base import is_dask_collection
-
-        return is_dask_collection(x)
+        dsk.load()
+        return import_module("dask.array").is_dask_collection(x)
     else:
         return False
 

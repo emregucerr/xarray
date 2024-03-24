@@ -9235,3 +9235,78 @@ class Dataset(
             restore_coord_dims=restore_coord_dims,
             **indexer_kwargs,
         )
+from xarray.core.options import OPTIONS
+import operator
+
+class Dataset:
+    def __init__(self, data_vars=None, coords=None, attrs=None):
+        self._data_vars = data_vars if data_vars is not None else {}
+        self._coords = coords if coords is not None else {}
+        self._attrs = attrs if attrs is not None else {}
+
+    @property
+    def data_vars(self):
+        return self._data_vars
+
+    @property
+    def attrs(self):
+        return self._attrs
+    def __add__(self, other):
+        return self._binary_op(other, operator.add)
+
+    def __sub__(self, other):
+        return self._binary_op(other, operator.sub)
+
+    def __mul__(self, other):
+        return self._binary_op(other, operator.mul)
+
+    def __truediv__(self, other):
+        return self._binary_op(other, operator.truediv)
+
+    def __floordiv__(self, other):
+        return self._binary_op(other, operator.floordiv)
+
+    def __mod__(self, other):
+        return self._binary_op(other, operator.mod)
+
+    def __pow__(self, other):
+        return self._binary_op(other, operator.pow)
+
+    def __and__(self, other):
+        return self._binary_op(other, operator.and_)
+
+    def __xor__(self, other):
+        return self._binary_op(other, operator.xor)
+
+    def __or__(self, other):
+        return self._binary_op(other, operator.or_)
+
+    def __radd__(self, other):
+        return self._binary_op(other, operator.add, reflexive=True)
+
+    def __rsub__(self, other):
+        return self._binary_op(other, operator.sub, reflexive=True)
+
+    def __rmul__(self, other):
+        return self._binary_op(other, operator.mul, reflexive=True)
+
+    def __rtruediv__(self, other):
+        return self._binary_op(other, operator.truediv, reflexive=True)
+
+    def __rfloordiv__(self, other):
+        return self._binary_op(other, operator.floordiv, reflexive=True)
+
+    def __rmod__(self, other):
+        return self._binary_op(other, operator.mod, reflexive=True)
+
+    def __rpow__(self, other):
+        return self._binary_op(other, operator.pow, reflexive=True)
+
+    def __rand__(self, other):
+        return self._binary_op(other, operator.and_, reflexive=True)
+
+    def __rxor__(self, other):
+        return self._binary_op(other, operator.xor, reflexive=True)
+
+    def __ror__(self, other):
+        return self._binary_op(other, operator.or_, reflexive=True)

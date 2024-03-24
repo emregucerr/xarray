@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import datetime
 import warnings
+import datetime
 from collections.abc import Hashable, Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Callable, Generic, Literal, TypeVar, Union, cast
 
@@ -347,65 +347,33 @@ class GroupBy(Generic[T_Xarray]):
             cut_kwargs = {}
         from xarray.core.dataarray import DataArray
 
-        if grouper is not None and bins is not None:
-            raise TypeError("can't specify both `grouper` and `bins`")
-
-        if not isinstance(group, (DataArray, IndexVariable)):
-            if not hashable(group):
-                raise TypeError(
-                    "`group` must be an xarray.DataArray or the "
-                    "name of an xarray variable or dimension. "
-                    f"Received {group!r} instead."
-                )
-            group = obj[group]
-            if len(group) == 0:
-                raise ValueError(f"{group.name} must not be empty")
-
-            if group.name not in obj.coords and group.name in obj.dims:
-                # DummyGroups should not appear on groupby results
-                group = _DummyGroup(obj, group.name, group.coords)
-
-        if getattr(group, "name", None) is None:
-            group.name = "group"
-
-        self._original_obj: T_Xarray = obj
-        self._original_group = group
-        self._bins = bins
-
-        group, obj, stacked_dim, inserted_dims = _ensure_1d(group, obj)
-        (group_dim,) = group.dims
-
-        expected_size = obj.sizes[group_dim]
-        if group.size != expected_size:
-            raise ValueError(
-                "the group variable's length does not "
-                "match the length of this variable along its "
-                "dimension"
-            )
-
-        full_index = None
-
-        if bins is not None:
-            if duck_array_ops.isnull(bins).all():
-                raise ValueError("All bin edges are NaN.")
-            binned, bins = pd.cut(group.values, bins, **cut_kwargs, retbins=True)
-            new_dim_name = str(group.name) + "_bins"
-            group = DataArray(binned, getattr(group, "coords", None), name=new_dim_name)
-            full_index = binned.categories
-
-        group_indices: list[slice] | list[list[int]] | np.ndarray
-        unique_coord: DataArray | IndexVariable | _DummyGroup
         if grouper is not None:
             index = safe_cast_to_index(group)
             if not index.is_monotonic_increasing:
                 # TODO: sort instead of raising an error
                 raise ValueError("index must be monotonic for resampling")
+            if "base" in grouper_kwargs:
+                offset = grouper_kwargs.pop("base")
+                if isinstance(offset, pd.Timedelta):
+                    offset = offset.to_offset()
+                if offset is not None:
+                    if grouper_kwargs.get("freq"):
+                        grouper_kwargs["freq"] += offset
+                    else:
+                        grouper_kwargs["offset"] = offset
+                warnings.warn(
+                    "The `base` argument to resample is deprecated and will be removed in a future version. "
+                    "Use `offset` instead.",
+                    FutureWarning,
+                    stacklevel=4,
+                )
+            grouper = pd.Grouper(freq=grouper, **grouper_kwargs)
             full_index, first_items = self._get_index_and_items(index, grouper)
             sbins = first_items.values.astype(np.int64)
             group_indices = [slice(i, j) for i, j in zip(sbins[:-1], sbins[1:])] + [
                 slice(sbins[-1], None)
             ]
-            unique_coord = IndexVariable(group.name, first_items.index)
+            unique_coord = IndexVariable(group.name, full_index)
         elif group.dims == (group.name,) and _unique_and_monotonic(group):
             # no need to factorize
             if not squeeze:

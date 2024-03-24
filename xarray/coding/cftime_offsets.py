@@ -895,7 +895,6 @@ def cftime_range(
     freq="D",
     normalize=False,
     name=None,
-    closed: NoDefault | SideOptions = no_default,
     inclusive: None | InclusiveOptions = None,
     calendar="standard",
 ):
@@ -1118,9 +1117,9 @@ def cftime_range(
             f"'left', 'right', or None.  Got {inclusive}."
         )
 
-    if not left_closed and len(dates) and start is not None and dates[0] == start:
+    if inclusive != 'left' and len(dates) and start is not None and dates[0] == start:
         dates = dates[1:]
-    if not right_closed and len(dates) and end is not None and dates[-1] == end:
+    if inclusive != 'right' and len(dates) and end is not None and dates[-1] == end:
         dates = dates[:-1]
 
     return CFTimeIndex(dates, name=name)

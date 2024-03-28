@@ -104,6 +104,7 @@ def encode_nc3_attrs(attrs):
 
 
 def _maybe_prepare_times(var):
+    #WTF
     # checks for integer-based time-like and
     # replaces np.iinfo(np.int64).min with _FillValue or np.nan
     # this keeps backwards compatibility
